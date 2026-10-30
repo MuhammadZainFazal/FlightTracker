@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Flight price tracker - EventBridge Scheduler + Lambda + DynamoDB + SNS
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Email that receives price alerts and alarms
+  ProviderName:
+    Type: String
+    Default: fake
+    AllowedValues: [fake, serpapi]
+  SerpApiKeyParam:
+    Type: String
+    Default: /flight-tracker/serpapi-key
+  MonthlyQuotaLimit:
+    Type: Number
+    Default: "240"
+  ScheduleExpression:
+    Type: String
+    Default: "cron(0 7 * * ? *)"
+
+  RouteOrigin:
+    Type: String
+    Default: AMS
+  RouteDestination:
+    Type: String
+    Default: LHE
+  TripDurationDays:
+    Type: Number
+    Default: "21"
+    MinValue: "1"
+    MaxValue: "90"
+    Description: Days between departure and return
+  PriceCurrency:
+    Type: String
+    Default: EUR
+    AllowedValues: [EUR, USD, GBP, PKR]
+  Adults:
+    Type: Number
+    Default: "1"
+    MinValue: "1"
+    MaxValue: "9"
+  MaxPrice:
+    Type: Number
+    Description: Alert at or below this price (check whether SerpApi's price is per person or total)
+  LookaheadDays:
+    Type: Number
+    Default: "91"
+    Description: Track departure dates up to this many days from today
+  MinLeadDays:
+    Type: Number
+    Default: "14"
+    MinValue: "0"
+    Description: Stop tracking a date once it is closer than this many days
+  DateSpacingDays:
+    Type: Number
+    Default: "13"
+    MinValue: "1"
+    Description: Gap between tracked departure dates
+  SampleCount:
+    Type: Number
+    Default: "6"
+    MinValue: "1"
+    MaxValue: "7"
+    Description: Maximum dates tracked at once (7 x 31 days = 217 calls, under the 240 quota)
+  MaxStops:
+    Type: Number
+    Default: "1"
+    MinValue: "0"
+    MaxValue: "2"
+    Description: 0 = direct only, 1 = at most 1 stop, 2 = at most 2 stops
+
+Resources:
+  TrackerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: PK, AttributeType: S }
+        - { AttributeName: SK, AttributeType: S }
+        - { AttributeName: GSI1PK, AttributeType: S }
+      KeySchema:
+        - { AttributeName: PK, KeyType: HASH }
+        - { AttributeName: SK, KeyType: RANGE }
+      # Sparse index: only watch META items carry GSI1PK, so listing
+      # active watches is a Query, never a Scan.
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - { AttributeName: GSI1PK, KeyType: HASH }
+            - { AttributeName: PK, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+
+  AlertsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  CheckerLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+
+  CheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/checker/
+      Handler: app.handler
+      Runtime: python3.12
+      Architectures: [arm64]
+      Timeout: 300
+      MemorySize: 256
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: !Ref CheckerLogs
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TrackerTable
+          TOPIC_ARN: !Ref AlertsTopic
+          PROVIDER: !Ref ProviderName
+          SERPAPI_KEY_PARAM: !Ref SerpApiKeyParam
+          QUOTA_LIMIT: !Ref MonthlyQuotaLimit
+          ROUTE_ORIGIN: !Ref RouteOrigin
+          ROUTE_DESTINATION: !Ref RouteDestination
+          TRIP_DURATION_DAYS: !Ref TripDurationDays
+          CURRENCY: !Ref PriceCurrency
+          ADULTS: !Ref Adults
+          MAX_PRICE: !Ref MaxPrice
+          LOOKAHEAD_DAYS: !Ref LookaheadDays
+          MIN_LEAD_DAYS: !Ref MinLeadDays
+          DATE_SPACING_DAYS: !Ref DateSpacingDays
+          SAMPLE_COUNT: !Ref SampleCount
+      Policies:
+        - Statement:
+            - Sid: TableAccess
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt TrackerTable.Arn
+                - !Sub "${TrackerTable.Arn}/index/GSI1"
+            - Sid: PublishAlerts
+              Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            - Sid: ReadApiKey
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SerpApiKeyParam}"
+      # No automatic retries: a retry would burn API quota. Failures raise
+      # the error alarm below, and tomorrow's run picks up where this one stopped.
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+      Events:
+        Daily:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref ScheduleExpression
+            ScheduleExpressionTimezone: Europe/Amsterdam
+
+  CheckerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: The daily flight check failed for at least one watch
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref CheckerFunction }
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+Outputs:
+  TableName:
+    Value: !Ref TrackerTable
+  FunctionName:
+    Value: !Ref CheckerFunction
+  TopicArn:
+    Value: !Ref AlertsTopic

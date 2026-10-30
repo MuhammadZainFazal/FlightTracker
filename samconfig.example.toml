@@ -1,0 +1,11 @@
+# Copy this to samconfig.toml and edit it, or run `sam deploy --guided`.
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "flight-tracker"
+region = "eu-west-1"
+resolve_s3 = true
+s3_prefix = "flight-tracker"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AlertEmail=\"you@example.com\" ProviderName=\"fake\" MaxPrice=\"700\" SampleCount=\"6\""

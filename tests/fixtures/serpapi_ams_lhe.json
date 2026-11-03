@@ -1,0 +1,33 @@
+{
+  "search_metadata": {"status": "Success", "google_flights_url": "https://www.google.com/travel/flights?hl=en&gl=nl&curr=EUR&tfs=EXAMPLE"},
+  "best_flights": [
+    {"flights": [
+       {"departure_airport": {"id": "AMS", "time": "2026-11-28 15:05"}, "arrival_airport": {"id": "DOH", "time": "2026-11-28 23:20"}, "airline": "Qatar Airways", "flight_number": "QR 274"},
+       {"departure_airport": {"id": "DOH", "time": "2026-11-29 02:00"}, "arrival_airport": {"id": "LHE", "time": "2026-11-29 07:20"}, "airline": "Qatar Airways", "flight_number": "QR 628"}],
+     "layovers": [{"duration": 160, "name": "Hamad International Airport", "id": "DOH"}],
+     "total_duration": 735, "price": 1670, "type": "Round trip"},
+    {"flights": [
+       {"departure_airport": {"id": "AMS", "time": "2026-11-28 18:30"}, "arrival_airport": {"id": "IST", "time": "2026-11-28 23:55"}, "airline": "Turkish Airlines", "flight_number": "TK 1954"},
+       {"departure_airport": {"id": "IST", "time": "2026-11-29 00:55"}, "arrival_airport": {"id": "LHE", "time": "2026-11-29 08:20"}, "airline": "Turkish Airlines", "flight_number": "TK 744"}],
+     "layovers": [{"duration": 60, "name": "Istanbul Airport", "id": "IST"}],
+     "total_duration": 590, "price": 1820, "type": "Round trip"},
+    {"flights": [
+       {"departure_airport": {"id": "AMS", "time": "2026-11-28 09:40"}, "arrival_airport": {"id": "AUH", "time": "2026-11-28 19:25"}, "airline": "Etihad", "flight_number": "EY 44"},
+       {"departure_airport": {"id": "AUH", "time": "2026-11-28 23:10"}, "arrival_airport": {"id": "LHE", "time": "2026-11-29 03:10"}, "airline": "Etihad", "flight_number": "EY 284"}],
+     "layovers": [{"duration": 225, "name": "Zayed International Airport", "id": "AUH"}],
+     "total_duration": 810, "price": 1853, "type": "Round trip"},
+    {"flights": [
+       {"departure_airport": {"id": "AMS", "time": "2026-11-28 10:35"}, "arrival_airport": {"id": "DXB", "time": "2026-11-28 20:20"}, "airline": "Emirates", "flight_number": "EK 146"},
+       {"departure_airport": {"id": "DXB", "time": "2026-11-28 21:50"}, "arrival_airport": {"id": "LHE", "time": "2026-11-29 01:40"}, "airline": "Emirates", "flight_number": "EK 622"}],
+     "layovers": [{"duration": 90, "name": "Dubai International Airport", "id": "DXB"}],
+     "total_duration": 665, "price": 2167, "type": "Round trip"}
+  ],
+  "other_flights": [
+    {"flights": [
+       {"departure_airport": {"id": "AMS", "time": "2026-11-28 21:50"}, "arrival_airport": {"id": "DOH", "time": "2026-11-29 06:05"}, "airline": "Qatar Airways", "flight_number": "QR 284"},
+       {"departure_airport": {"id": "DOH", "time": "2026-11-29 19:50"}, "arrival_airport": {"id": "LHE", "time": "2026-11-30 01:10"}, "airline": "Qatar Airways", "flight_number": "QR 620"}],
+     "layovers": [{"duration": 825, "name": "Hamad International Airport", "id": "DOH"}],
+     "total_duration": 1400, "price": 1675, "type": "Round trip"}
+  ],
+  "price_insights": {"lowest_price": 1670, "price_level": "typical", "typical_price_range": [1400, 2150]}
+}
